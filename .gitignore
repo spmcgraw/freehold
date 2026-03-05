@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 
 .venv/
+venv/
 .env
 .env.*
 !.env.sample
@@ -14,10 +15,13 @@ htmlcov/
 
 dist/
 build/
+.next/
+node_modules/
 
 *.db
 *.sqlite
 
 .ruff_cache/
 *.log
+*.zip
 *.Zone.Identifier
