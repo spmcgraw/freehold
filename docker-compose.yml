@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: freehold
       POSTGRES_DB: freehold
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
