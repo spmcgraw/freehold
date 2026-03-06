@@ -116,7 +116,7 @@ The restore guarantee means: given this bundle and a fresh Freehold installation
 
 ## Getting started (development)
 
-> Prerequisites: Python 3.11+, Node.js 18+, PostgreSQL 15+, Docker (optional)
+> Prerequisites: Python 3.11+, Node.js 18+, PostgreSQL 16+, Docker (optional)
 
 ```bash
 git clone https://github.com/your-username/freehold
