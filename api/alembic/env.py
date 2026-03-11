@@ -20,11 +20,9 @@ config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# When you create your first model, import Base and uncomment the line below
-# so that `alembic revision --autogenerate` can detect schema changes.
-# from freehold.models import Base  # noqa: E402
-# target_metadata = Base.metadata
-target_metadata = None
+from freehold.models import Base  # noqa: E402
+
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
