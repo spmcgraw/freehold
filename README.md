@@ -116,24 +116,59 @@ The restore guarantee means: given this bundle and a fresh Freehold installation
 
 ## Getting started (development)
 
-> Prerequisites: Python 3.11+, Node.js 18+, PostgreSQL 16+, Docker (optional)
+**Prerequisites:** Python 3.11+, Node.js 18+, Docker (for PostgreSQL)
+
+### 1. Start PostgreSQL
 
 ```bash
-git clone https://github.com/your-username/freehold
-cd freehold
+docker compose up -d
+```
 
-# Backend
+This starts PostgreSQL on port 5433 using the credentials in `docker-compose.yml`.
+
+### 2. Backend (FastAPI)
+
+```bash
 cd api
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-alembic upgrade head
-uvicorn main:app --reload
 
-# Frontend
-cd ../web
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -e ".[dev]"
+
+# Configure environment
+cp .env.example .env             # defaults work with the Docker Compose DB
+
+# Run database migrations
+alembic upgrade head
+
+# Start the API server (http://localhost:8000)
+uvicorn main:app --reload
+```
+
+The interactive API docs are at `http://localhost:8000/docs`.
+
+### 3. Frontend (Next.js)
+
+In a separate terminal:
+
+```bash
+cd web
 npm install
-npm run dev
+npm run dev                      # http://localhost:3000
+```
+
+Open `http://localhost:3000` — you'll land on the workspace list. Create a workspace, then add spaces, collections, and pages from the sidebar.
+
+### Running tests
+
+```bash
+cd api
+source .venv/bin/activate
+pytest                           # all tests
+pytest tests/test_round_trip.py  # export/restore round-trip only
 ```
 
 ---
