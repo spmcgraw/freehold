@@ -128,7 +128,7 @@ export function SearchDialog({ workspaceId }: Props) {
         <Search className="h-3.5 w-3.5" />
         <span className="flex-1 text-left">Search...</span>
         <kbd className="pointer-events-none hidden select-none items-center gap-0.5 rounded border bg-muted px-1 font-mono text-[10px] font-medium sm:flex">
-          {isMac ? <span className="text-xs">&#8984;</span> : <span className="text-xs">Ctrl+</span>}K
+          {isMac ? "\u2318K" : "Ctrl+K"}
         </kbd>
       </button>
 
