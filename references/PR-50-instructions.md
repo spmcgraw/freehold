@@ -7,15 +7,15 @@ This verifies the app works exactly as before when OIDC is not configured.
 ### Setup
 
 1. Make sure your api/.env has no OIDC settings (they should be commented out or absent):
-  DATABASE_URL=postgresql://freehold:freehold@localhost:5433/freehold
-  SECRET_KEY=changeme
-  STORAGE_PATH=./storage
-  /# API_KEY=            ← leave commented out
-  /# OIDC_ISSUER=        ← leave commented out
+   DATABASE_URL=postgresql://freehold:freehold@localhost:5433/freehold
+   SECRET_KEY=changeme
+   STORAGE_PATH=./storage
+   /# API_KEY=            ← leave commented out
+   /# OIDC_ISSUER=        ← leave commented out
 2. Make sure your web/.env.local has OIDC disabled:
-  NEXT_PUBLIC_API_URL=`http://localhost:8000`
-  NEXT_PUBLIC_API_KEY=
-  NEXT_PUBLIC_OIDC_ENABLED=
+   NEXT_PUBLIC_API_URL=`http://localhost:8000`
+   NEXT_PUBLIC_API_KEY=
+   NEXT_PUBLIC_OIDC_ENABLED=
 
 ### Start everything
 
