@@ -174,6 +174,7 @@ freehold/
 │   ├── components/
 │   │   ├── app-sidebar.tsx           # Tree nav: Spaces → Collections → Pages + search
 │   │   ├── search-dialog.tsx         # Cmd+K search dialog
+│   │   ├── export-dialog.tsx         # Export workspace dialog (full / slim, size estimate)
 │   │   ├── page-editor.tsx           # Title + markdown textarea, auto-save, attachments, revisions
 │   │   └── ui/                       # Shadcn/Base UI components
 │   ├── lib/
@@ -242,6 +243,8 @@ All routes are prefixed with `/api`. Authentication is enforced via session cook
 | GET/DELETE | /api/workspaces/{id} | Get / delete workspace | viewer/owner |
 | GET | /api/workspaces/{id}/tree | Full hierarchy (sidebar) | viewer |
 | GET | /api/workspaces/{id}/search?q= | Full-text search across workspace pages | viewer |
+| GET | /api/workspaces/{id}/export?slim=false | Download workspace as zip bundle | viewer |
+| GET | /api/workspaces/{id}/export/estimate | Pre-compression byte estimates for full & slim exports | viewer |
 | GET/POST | /api/workspaces/{id}/spaces/ | List / create spaces | viewer/editor |
 | GET/DELETE | /api/workspaces/{id}/spaces/{sid} | Get / delete space | viewer/owner |
 | GET/POST | /api/spaces/{sid}/collections/ | List / create collections | viewer/editor |
@@ -269,7 +272,8 @@ class StorageAdapter(ABC):
 ### Export Bundle Format
 
 ```
-freehold-export-{workspace-slug}-{timestamp}.zip
+freehold-export-{workspace-slug}-{timestamp}.zip          # full
+freehold-export-{workspace-slug}-slim-{timestamp}.zip     # slim
 ├── manifest.json        # workspace + org metadata, all entity IDs, schema version (v3)
 ├── pages/
 │   ├── {page-id}.md     # human-readable Markdown (all pages)
@@ -285,6 +289,8 @@ freehold-export-{workspace-slug}-{timestamp}.zip
 
 v1/v2 bundles had only `.md` files. v3 adds `.json` as canonical for JSON-format revisions.
 Restore supports v1, v2, and v3 bundles.
+
+**Slim bundles** omit the `revisions/` directory entirely and set `"slim": true` + `"revisions": []` in `manifest.json`. Restore recreates one revision per page from `pages/` content. CLI: `freehold export --slim`; API: `?slim=true`.
 
 ### Authentication
 

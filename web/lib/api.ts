@@ -88,6 +88,18 @@ export function getWorkspaceTree(id: string): Promise<WorkspaceTree> {
   return apiFetch(`/api/workspaces/${id}/tree`);
 }
 
+export function getExportSizeEstimate(
+  workspaceId: string
+): Promise<{ full_bytes: number; slim_bytes: number }> {
+  return apiFetch(`/api/workspaces/${workspaceId}/export/estimate`);
+}
+
+export function exportWorkspaceUrl(workspaceId: string, slim: boolean): string {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const params = slim ? "?slim=true" : "";
+  return `${base}/api/workspaces/${workspaceId}/export${params}`;
+}
+
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------

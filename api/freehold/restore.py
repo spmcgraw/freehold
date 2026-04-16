@@ -51,6 +51,8 @@ def restore_workspace(
                 f"Unsupported bundle schema version '{schema_version}' (expected '1', '2', or '3')"
             )
 
+        is_slim = manifest.get("slim", False)
+
         ws_meta = manifest["workspace"]
         ws_id = uuid.UUID(ws_meta["id"])
 
@@ -157,25 +159,53 @@ def restore_workspace(
         session.flush()
 
         # --- Revisions ---
-        for r in manifest["revisions"]:
-            content_format = r.get("content_format", "markdown")
-            if content_format == "json":
-                # v3 bundle: canonical content is the .json file
-                rev_file = f"revisions/{r['page_id']}/{r['id']}.json"
-            else:
-                rev_file = f"revisions/{r['page_id']}/{r['id']}.md"
-            if rev_file not in names:
-                raise ValueError(f"Bundle is missing revision file: {rev_file}")
-            content = zf.read(rev_file).decode()
-            session.add(
-                Revision(
-                    id=uuid.UUID(r["id"]),
-                    page_id=uuid.UUID(r["page_id"]),
-                    content=content,
-                    content_format=content_format,
-                    created_at=_dt(r["created_at"]),
+        if is_slim:
+            # Slim bundles omit revision history. Recreate one revision per page
+            # from the current page content stored in pages/.
+            for p in manifest["pages"]:
+                page_id = uuid.UUID(p["id"])
+                # Detect JSON vs Markdown from available files
+                json_file = f"pages/{p['id']}.json"
+                md_file = f"pages/{p['id']}.md"
+                if json_file in names:
+                    content = zf.read(json_file).decode()
+                    content_format = "json"
+                elif md_file in names:
+                    content = zf.read(md_file).decode()
+                    content_format = "markdown"
+                else:
+                    content = ""
+                    content_format = "markdown"
+                new_rev_id = uuid.uuid4()
+                session.add(
+                    Revision(
+                        id=new_rev_id,
+                        page_id=page_id,
+                        content=content,
+                        content_format=content_format,
+                    )
                 )
-            )
+                page_current_revisions[page_id] = new_rev_id
+        else:
+            for r in manifest["revisions"]:
+                content_format = r.get("content_format", "markdown")
+                if content_format == "json":
+                    # v3 bundle: canonical content is the .json file
+                    rev_file = f"revisions/{r['page_id']}/{r['id']}.json"
+                else:
+                    rev_file = f"revisions/{r['page_id']}/{r['id']}.md"
+                if rev_file not in names:
+                    raise ValueError(f"Bundle is missing revision file: {rev_file}")
+                content = zf.read(rev_file).decode()
+                session.add(
+                    Revision(
+                        id=uuid.UUID(r["id"]),
+                        page_id=uuid.UUID(r["page_id"]),
+                        content=content,
+                        content_format=content_format,
+                        created_at=_dt(r["created_at"]),
+                    )
+                )
         session.flush()
 
         # --- Wire up current_revision_id now that revisions exist ---
