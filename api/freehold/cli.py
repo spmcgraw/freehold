@@ -14,6 +14,9 @@ def export(
     output: Path | None = typer.Option(
         None, "--output", "-o", help="Output path (file or directory; defaults to cwd)"
     ),
+    slim: bool = typer.Option(
+        False, "--slim", help="Skip revision history; export current content only"
+    ),
     database_url: str | None = typer.Option(
         None, "--database-url", envvar="DATABASE_URL", help="PostgreSQL connection URL"
     ),
@@ -40,6 +43,7 @@ def export(
                 session=session,
                 storage=storage,
                 output_path=output,
+                slim=slim,
             )
         typer.echo(f"Exported to {result}")
     except ValueError as exc:

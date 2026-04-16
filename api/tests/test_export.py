@@ -13,7 +13,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from freehold.export import SCHEMA_VERSION, export_workspace
+from freehold.export import SCHEMA_VERSION, estimate_export_sizes, export_workspace
 from freehold.models import Attachment, Collection, Organization, Page, Revision, Space, Workspace
 from freehold.storage import StorageAdapter
 
@@ -296,3 +296,126 @@ def test_output_filename_default(seeded, session, tmp_path):
     )
     assert result.name.startswith("freehold-export-export-test-ws-")
     assert result.name.endswith(".zip")
+
+
+# ---------------------------------------------------------------------------
+# Slim export tests
+# ---------------------------------------------------------------------------
+
+
+def test_slim_export_omits_revisions(seeded, session, tmp_path):
+    result = export_workspace(
+        slug="export-test-ws",
+        session=session,
+        storage=seeded["storage"],
+        output_path=tmp_path,
+        slim=True,
+    )
+
+    with zipfile.ZipFile(result) as zf:
+        names = zf.namelist()
+
+    assert not any(n.startswith("revisions/") for n in names)
+    assert any(n.startswith("pages/") for n in names)
+    assert "manifest.json" in names
+
+
+def test_slim_export_filename_contains_slim(seeded, session, tmp_path):
+    result = export_workspace(
+        slug="export-test-ws",
+        session=session,
+        storage=seeded["storage"],
+        output_path=tmp_path,
+        slim=True,
+    )
+    assert "-slim-" in result.name
+
+
+def test_slim_manifest_has_slim_flag_and_empty_revisions(seeded, session, tmp_path):
+    result = export_workspace(
+        slug="export-test-ws",
+        session=session,
+        storage=seeded["storage"],
+        output_path=tmp_path,
+        slim=True,
+    )
+
+    with zipfile.ZipFile(result) as zf:
+        manifest = json.loads(zf.read("manifest.json"))
+
+    assert manifest.get("slim") is True
+    assert manifest["revisions"] == []
+
+
+def test_slim_bundle_is_restorable(session, tmp_path):
+    """A slim bundle restores cleanly — one revision per page from pages/ content."""
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    from freehold.restore import restore_workspace
+
+    now = datetime.now(timezone.utc).isoformat()
+    ws_id = _uuid.uuid4()
+    org_id = _uuid.uuid4()
+    space_id = _uuid.uuid4()
+    col_id = _uuid.uuid4()
+    page_id = _uuid.uuid4()
+
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "slim": True,
+        "export_timestamp": now,
+        "organization": {
+            "id": str(org_id),
+            "slug": "slim-restore-org",
+            "name": "Slim Restore Org",
+            "created_at": now,
+        },
+        "workspace": {
+            "id": str(ws_id),
+            "org_id": str(org_id),
+            "slug": "slim-restore-ws",
+            "name": "Slim Restore WS",
+            "created_at": now,
+        },
+        "spaces": [{"id": str(space_id), "workspace_id": str(ws_id), "slug": "sp", "name": "Space", "created_at": now}],
+        "collections": [{"id": str(col_id), "space_id": str(space_id), "slug": "col", "name": "Col", "created_at": now}],
+        "pages": [{"id": str(page_id), "collection_id": str(col_id), "slug": "pg", "title": "Page", "current_revision_id": None, "created_at": now}],
+        "revisions": [],
+        "attachments": [],
+    }
+
+    import io as _io
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("manifest.json", json.dumps(manifest))
+        zf.writestr(f"pages/{page_id}.md", "# Page\nCurrent content.")
+        zf.writestr("links.json", json.dumps({"internal_links": [], "broken_links": [], "orphaned_pages": []}))
+
+    bundle_path = tmp_path / "slim-bundle.zip"
+    bundle_path.write_bytes(buf.getvalue())
+
+    storage = FakeStorageAdapter()
+    slug = restore_workspace(bundle_path, session, storage)
+    assert slug == "slim-restore-ws"
+
+    from freehold.models import Workspace
+    restored_ws = session.query(Workspace).filter_by(slug="slim-restore-ws").one()
+    pages_list = [p for s in restored_ws.spaces for c in s.collections for p in c.pages]
+    assert len(pages_list) == 1
+    p = pages_list[0]
+    assert p.current_revision is not None
+    assert p.current_revision.content == "# Page\nCurrent content."
+    assert len(p.revisions) == 1
+
+
+def test_estimate_export_sizes(seeded, session):
+    sizes = estimate_export_sizes(
+        slug="export-test-ws",
+        session=session,
+        storage=seeded["storage"],
+    )
+
+    assert "full_bytes" in sizes
+    assert "slim_bytes" in sizes
+    assert sizes["full_bytes"] >= sizes["slim_bytes"]
+    assert sizes["slim_bytes"] >= 0

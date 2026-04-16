@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, FilePlus, FolderPlus, Plus, Settings } from "lucide-react";
+import { ExportDialog } from "@/components/export-dialog";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -240,6 +241,7 @@ export function AppSidebar({ tree, user }: Props) {
         <div className="flex items-center justify-between px-2 pb-1.5 group">
           <span className="text-xs font-medium text-muted-foreground">{tree.name}</span>
           <div className="flex items-center gap-1">
+            <ExportDialog workspaceId={tree.id} workspaceName={tree.name} />
             <a
               href={`/orgs/${tree.org_id}/settings`}
               className="hidden group-hover:flex items-center text-muted-foreground hover:text-foreground"

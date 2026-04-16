@@ -1,8 +1,11 @@
 """Workspace CRUD endpoints."""
 
+import os
+from io import BytesIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +21,7 @@ from ..schemas import (
     WorkspaceTree,
 )
 from ..search import SearchBackend
+from ..storage import LocalFilesystemAdapter
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
@@ -118,6 +122,62 @@ def search_workspace(
     return SearchResponse(
         query=q,
         results=[SearchResultItem(**vars(r)) for r in results],
+    )
+
+
+@router.get("/{workspace_id}/export/estimate")
+def estimate_workspace_export(
+    workspace_id: UUID,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_workspace_role(OrgRole.VIEWER)),
+):
+    """Return pre-compression byte estimates for full and slim export bundles."""
+    from ..export import estimate_export_sizes
+
+    ws = db.get(Workspace, workspace_id)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    storage_root = os.getenv("STORAGE_PATH", "/var/lib/freehold/attachments")
+    storage = LocalFilesystemAdapter(storage_root)
+
+    return estimate_export_sizes(slug=ws.slug, session=db, storage=storage)
+
+
+@router.get("/{workspace_id}/export")
+def export_workspace_endpoint(
+    workspace_id: UUID,
+    slim: bool = False,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_workspace_role(OrgRole.VIEWER)),
+):
+    """Download a workspace export bundle as a zip file."""
+    from pathlib import Path
+    from ..export import export_workspace
+
+    ws = db.get(Workspace, workspace_id)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    storage_root = os.getenv("STORAGE_PATH", "/var/lib/freehold/attachments")
+    storage = LocalFilesystemAdapter(storage_root)
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        bundle_path = export_workspace(
+            slug=ws.slug,
+            session=db,
+            storage=storage,
+            output_path=Path(tmp),
+            slim=slim,
+        )
+        data = bundle_path.read_bytes()
+
+    return StreamingResponse(
+        BytesIO(data),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{bundle_path.name}"'},
     )
 
 

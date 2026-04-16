@@ -291,13 +291,61 @@ def _build_manifest(
     }
 
 
+def estimate_export_sizes(
+    slug: str,
+    session: Session,
+    storage: StorageAdapter,
+) -> dict:
+    """Return estimated byte sizes for full and slim exports of *slug*.
+
+    Sizes are raw (pre-compression) byte counts. Actual zip files will be
+    smaller due to DEFLATE compression, but the ratio between full and slim
+    is accurate.
+    """
+    workspace = session.query(Workspace).filter_by(slug=slug).first()
+    if workspace is None:
+        raise ValueError(f"Workspace '{slug}' not found")
+
+    pages = _collect_pages(workspace)
+    for page in pages:
+        _ = page.current_revision
+        _ = page.revisions
+        _ = page.attachments
+
+    attachment_bytes = 0
+    for page in pages:
+        for att in page.attachments:
+            attachment_bytes += att.size_bytes
+
+    current_content_bytes = sum(
+        len((page.current_revision.content or "").encode())
+        for page in pages
+        if page.current_revision
+    )
+    revision_bytes = sum(
+        len((rev.content or "").encode())
+        for page in pages
+        for rev in page.revisions
+    )
+
+    slim_bytes = current_content_bytes + attachment_bytes
+    full_bytes = slim_bytes + revision_bytes
+
+    return {"full_bytes": full_bytes, "slim_bytes": slim_bytes}
+
+
 def export_workspace(
     slug: str,
     session: Session,
     storage: StorageAdapter,
     output_path: Path | None = None,
+    slim: bool = False,
 ) -> Path:
-    """Export *slug* to a zip bundle and return the path of the written file."""
+    """Export *slug* to a zip bundle and return the path of the written file.
+
+    When *slim* is True the revisions/ directory is omitted, producing a
+    current-content-only bundle that is smaller but cannot restore full history.
+    """
     workspace = session.query(Workspace).filter_by(slug=slug).first()
     if workspace is None:
         raise ValueError(f"Workspace '{slug}' not found")
@@ -313,7 +361,8 @@ def export_workspace(
 
     export_timestamp = datetime.now(timezone.utc).isoformat()
     timestamp_fmt = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    bundle_name = f"freehold-export-{workspace.slug}-{timestamp_fmt}.zip"
+    slim_suffix = "-slim" if slim else ""
+    bundle_name = f"freehold-export-{workspace.slug}{slim_suffix}-{timestamp_fmt}.zip"
 
     if output_path is None:
         output_path = Path.cwd() / bundle_name
@@ -341,17 +390,18 @@ def export_workspace(
             else:
                 zf.writestr(f"pages/{page_id}.md", content)
 
-            # Every revision (append-only history).
-            for rev in page.revisions:
-                rev_id = str(rev.id)
-                if rev.content_format == "json":
-                    zf.writestr(f"revisions/{page_id}/{rev_id}.json", rev.content)
-                    zf.writestr(
-                        f"revisions/{page_id}/{rev_id}.md",
-                        blocks_to_markdown(rev.content),
-                    )
-                else:
-                    zf.writestr(f"revisions/{page_id}/{rev_id}.md", rev.content)
+            if not slim:
+                # Every revision (append-only history).
+                for rev in page.revisions:
+                    rev_id = str(rev.id)
+                    if rev.content_format == "json":
+                        zf.writestr(f"revisions/{page_id}/{rev_id}.json", rev.content)
+                        zf.writestr(
+                            f"revisions/{page_id}/{rev_id}.md",
+                            blocks_to_markdown(rev.content),
+                        )
+                    else:
+                        zf.writestr(f"revisions/{page_id}/{rev_id}.md", rev.content)
 
         # Attachments — verify hash before including.
         all_attachments: list[Attachment] = []
@@ -381,12 +431,13 @@ def export_workspace(
             )
 
         zf.writestr("links.json", json.dumps(_build_links(pages, page_id_set), indent=2))
-        zf.writestr(
-            "manifest.json",
-            json.dumps(
-                _build_manifest(workspace, pages, attachment_records, export_timestamp), indent=2
-            ),
-        )
+
+        manifest = _build_manifest(workspace, pages, attachment_records, export_timestamp)
+        if slim:
+            manifest["slim"] = True
+            manifest["revisions"] = []
+
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
 
     output_path.write_bytes(buf.getvalue())
     return output_path
