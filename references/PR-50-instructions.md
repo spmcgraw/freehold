@@ -7,7 +7,7 @@ This verifies the app works exactly as before when OIDC is not configured.
 ### Setup
 
 1. Make sure your api/.env has no OIDC settings (they should be commented out or absent):
-   DATABASE_URL=postgresql://freehold:freehold@localhost:5433/freehold
+   DATABASE_URL=postgresql://marrow:marrow@localhost:5433/marrow
    SECRET_KEY=changeme
    STORAGE_PATH=./storage
    /# API_KEY=            ← leave commented out
@@ -57,11 +57,11 @@ This is the most involved test. We'll spin up a local Keycloak instance as your 
 3. Click Administration Console and log in with `admin` / `admin`
 4. Create a realm (a realm is like a tenant in Keycloak):
     - In the top-left dropdown (it says "Keycloak" or "master"), click it and then click Create realm
-    - Set the Realm name to `freehold`
+    - Set the Realm name to `marrow`
     - Click Create
-5. Create a client (this represents your Freehold app):
+5. Create a client (this represents your Marrow app):
     - In the left sidebar, click Clients → Create client
-    - Client ID: `freehold-app`
+    - Client ID: `marrow-app`
     - Click Next
     - Turn ON Client authentication (this makes it a confidential client, which gives you a client secret)
     - Click Next
@@ -81,14 +81,14 @@ This is the most involved test. We'll spin up a local Keycloak instance as your 
     - Go to the Credentials tab on that user
     - Click Set password, enter `password`, turn OFF Temporary, click Save
 
-### Part B: Configure Freehold
+### Part B: Configure Marrow
 
 1. Update `api/.env`:
-  DATABASE_URL=`postgresql://freehold:freehold@localhost:5433/freehold`
+  DATABASE_URL=`postgresql://marrow:marrow@localhost:5433/marrow`
   SECRET_KEY=changeme
   STORAGE_PATH=./storage
-  OIDC_ISSUER=`http://localhost:8080/realms/freehold`
-  OIDC_CLIENT_ID=freehold-app
+  OIDC_ISSUER=`http://localhost:8080/realms/marrow`
+  OIDC_CLIENT_ID=marrow-app
   OIDC_CLIENT_SECRET=<paste the secret from step 6>
   OIDC_REDIRECT_URI=`http://localhost:8000/api/auth/callback`
   FRONTEND_URL=`http://localhost:3000`
@@ -141,7 +141,7 @@ This verifies that header-based API key auth works alongside OIDC.
 
 ### First create a workspace via the API or browser, then:
 
-API_KEY=test-secret-key freehold export --workspace <your-workspace-slug> --output /tmp/test-export.zip
+API_KEY=test-secret-key marrow export --workspace <your-workspace-slug> --output /tmp/test-export.zip
 11. This should succeed, proving CLI export works with API key auth even when OIDC is enabled.
 
 If all of that works, this test passes.

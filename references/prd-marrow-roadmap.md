@@ -1,10 +1,10 @@
-# Freehold Product Roadmap — PRD
+# Marrow Product Roadmap — PRD
 
 ## Overview
 
-Freehold is an open-source, self-hostable knowledge base built around a non-negotiable restore guarantee: any export bundle can be restored to an exact replica of the original workspace. The v0.1 MVP proves this technically — append-only revisions, zip-based export/restore, and a round-trip integration test that validates the cycle.
+Marrow is an open-source, self-hostable knowledge base built around a non-negotiable restore guarantee: any export bundle can be restored to an exact replica of the original workspace. The v0.1 MVP proves this technically — append-only revisions, zip-based export/restore, and a round-trip integration test that validates the cycle.
 
-This PRD defines the phased roadmap to turn Freehold from a working proof-of-concept into a product that solo contractors and small teams use daily. Each phase is a shippable milestone with its own "done" criteria. Phases can overlap in development but ship sequentially.
+This PRD defines the phased roadmap to turn Marrow from a working proof-of-concept into a product that solo contractors and small teams use daily. Each phase is a shippable milestone with its own "done" criteria. Phases can overlap in development but ship sequentially.
 
 **Target user (day one):** Solo contractors and freelancers managing multiple client engagements. One workspace per client. Export when the engagement ends. Restore when they come back.
 
@@ -15,12 +15,12 @@ This PRD defines the phased roadmap to turn Freehold from a working proof-of-con
 
 ## Phase 1 — Usable Knowledge Base
 
-**Goal:** Make Freehold usable enough that a solo contractor replaces their current wiki/notes tool with it.
+**Goal:** Make Marrow usable enough that a solo contractor replaces their current wiki/notes tool with it.
 
 ### 1.1 Search
 
 **Decision:** PostgreSQL full-text search. No new infrastructure.
-**Why:** Freehold already requires Postgres. A `tsvector` column on pages with a GIN index gets ranked full-text search with zero new services. Handles 10k+ pages comfortably.
+**Why:** Marrow already requires Postgres. A `tsvector` column on pages with a GIN index gets ranked full-text search with zero new services. Handles 10k+ pages comfortably.
 **Rejected:** Meilisearch (adds a service dependency, overkill for launch), application-level search (too slow past 1k pages).
 
 **Implementation:**
@@ -38,7 +38,7 @@ This PRD defines the phased roadmap to turn Freehold from a working proof-of-con
 
 ### 1.2 Authentication
 
-**Decision:** OIDC-first. Freehold validates JWT tokens from a configured OIDC provider.
+**Decision:** OIDC-first. Marrow validates JWT tokens from a configured OIDC provider.
 **Why:** Avoids building password hashing, reset flows, email verification, brute-force protection. Self-hosters point at their own IdP (Keycloak, Okta, Azure AD). SaaS tier uses a managed provider (Clerk/Auth0). SSO is a natural consequence, not a separate feature.
 **Rejected:** Built-in email/password (massive security surface area for a small team), OAuth-only without OIDC (less standardized, harder for self-hosters).
 
@@ -132,7 +132,7 @@ This PRD defines the phased roadmap to turn Freehold from a working proof-of-con
 **Blocked by:** 1.4 (#37), 1.5 (#38)
 
 **Done when:**
-- A stranger can self-host Freehold in under 30 minutes following the README
+- A stranger can self-host Marrow in under 30 minutes following the README
 - Cloudflare deployment path documented (Pages + Containers + Neon + R2)
 - `v0.1.0` GitHub release created and tagged
 
